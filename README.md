@@ -38,6 +38,14 @@ uv run webspace_sync upload path/to/local/file.json --remote-dir data/raw
 uv run webspace_sync ls data/raw
 ```
 
+#### Push a directory
+
+```bash
+uv run webspace_sync push ./local_dir data/remote_dir --recurse
+```
+
+This command will only upload files that are new or have a newer timestamp than the remote version.
+
 ### Python API
 
 You can also use the `WebspaceClient` in your Python code:
@@ -50,6 +58,7 @@ client = WebspaceClient(host="ftp.example.com", username="user", password="pass"
 
 with client:
     client.upload(Path("local_file.txt"), "remote/dir")
+    client.push(Path("./local_dir"), "remote/dir", recursive=True, callback=print)
     files = client.ls("remote/dir")
     print(files)
 ```

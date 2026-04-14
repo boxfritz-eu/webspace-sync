@@ -56,6 +56,23 @@ def main():
         help="Remote directory to list (default: .)",
     )
 
+    # Push command
+    push_parser = subparsers.add_parser("push", help="Push new or updated files to a remote directory")
+    push_parser.add_argument(
+        "source",
+        help="Local directory to push from",
+    )
+    push_parser.add_argument(
+        "target",
+        help="Remote directory to push to",
+    )
+    push_parser.add_argument(
+        "--recurse",
+        "-R",
+        action="store_true",
+        help="Push directories recursively",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -80,6 +97,13 @@ def main():
                 files = client.ls(args.remote_dir)
                 for f in files:
                     print(f)
+            elif args.command == "push":
+                client.push(
+                    Path(args.source),
+                    args.target,
+                    recursive=args.recurse,
+                    callback=print
+                )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
