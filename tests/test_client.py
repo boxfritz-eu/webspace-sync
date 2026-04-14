@@ -1,12 +1,13 @@
 import pytest
-from unittest.mock import MagicMock, patch
-from pathlib import Path
+from unittest.mock import patch
 from webspace_sync.client import WebspaceClient
+
 
 @pytest.fixture
 def mock_ftp():
     with patch("webspace_sync.client.FTP_TLS") as mock:
         yield mock.return_value
+
 
 def test_client_connect(mock_ftp):
     client = WebspaceClient("host", "user", "pass")
@@ -16,8 +17,11 @@ def test_client_connect(mock_ftp):
     mock_ftp.login.assert_called_once_with("user", "pass")
     mock_ftp.prot_p.assert_called_once()
 
+
 def test_client_ls(mock_ftp):
-    mock_ftp.retrlines.side_effect = lambda cmd, callback: [callback(f) for f in ["file1.txt", "file2.txt"]]
+    mock_ftp.retrlines.side_effect = lambda cmd, callback: [
+        callback(f) for f in ["file1.txt", "file2.txt"]
+    ]
 
     client = WebspaceClient("host", "user", "pass")
     files = client.ls("some_dir")
@@ -25,6 +29,7 @@ def test_client_ls(mock_ftp):
     assert files == ["file1.txt", "file2.txt"]
     mock_ftp.retrlines.assert_called_once()
     assert "NLST some_dir" in mock_ftp.retrlines.call_args[0][0]
+
 
 def test_client_ensure_remote_dir(mock_ftp):
     mock_ftp.pwd.return_value = "/"
@@ -39,6 +44,7 @@ def test_client_ensure_remote_dir(mock_ftp):
     # Check it returns to original cwd
     mock_ftp.cwd.assert_any_call("/")
 
+
 def test_client_upload(mock_ftp, tmp_path):
     mock_ftp.pwd.return_value = "/"
     local_file = tmp_path / "test.txt"
@@ -51,9 +57,10 @@ def test_client_upload(mock_ftp, tmp_path):
     assert "STOR test.txt" in mock_ftp.storbinary.call_args[0][0]
     mock_ftp.cwd.assert_any_call("remote/path")
 
+
 def test_client_push_new_file(mock_ftp, tmp_path):
     mock_ftp.pwd.return_value = "/"
-    mock_ftp.mlsd.return_value = [] # No remote files
+    mock_ftp.mlsd.return_value = []  # No remote files
 
     local_dir = tmp_path / "local"
     local_dir.mkdir()
@@ -65,11 +72,13 @@ def test_client_push_new_file(mock_ftp, tmp_path):
     mock_ftp.storbinary.assert_called_once()
     assert "STOR new.txt" in mock_ftp.storbinary.call_args[0][0]
 
+
 def test_client_push_existing_file_newer(mock_ftp, tmp_path):
-    import datetime
     mock_ftp.pwd.return_value = "/"
     # Remote file is from 2020
-    mock_ftp.mlsd.return_value = [("old.txt", {"type": "file", "modify": "20200101000000"})]
+    mock_ftp.mlsd.return_value = [
+        ("old.txt", {"type": "file", "modify": "20200101000000"})
+    ]
 
     local_dir = tmp_path / "local"
     local_dir.mkdir()
@@ -82,12 +91,13 @@ def test_client_push_existing_file_newer(mock_ftp, tmp_path):
 
     mock_ftp.storbinary.assert_called_once()
 
+
 def test_client_push_existing_file_older(mock_ftp, tmp_path):
-    import os
-    import time
     mock_ftp.pwd.return_value = "/"
     # Remote file is from 2030 (future)
-    mock_ftp.mlsd.return_value = [("future.txt", {"type": "file", "modify": "20300101000000"})]
+    mock_ftp.mlsd.return_value = [
+        ("future.txt", {"type": "file", "modify": "20300101000000"})
+    ]
 
     local_dir = tmp_path / "local"
     local_dir.mkdir()
@@ -99,9 +109,10 @@ def test_client_push_existing_file_older(mock_ftp, tmp_path):
 
     mock_ftp.storbinary.assert_not_called()
 
+
 def test_client_push_recursive(mock_ftp, tmp_path):
     mock_ftp.pwd.return_value = "/"
-    mock_ftp.mlsd.side_effect = [[], []] # Empty for both dirs
+    mock_ftp.mlsd.side_effect = [[], []]  # Empty for both dirs
 
     local_dir = tmp_path / "local"
     local_dir.mkdir()
