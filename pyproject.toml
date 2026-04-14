@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-webspace-sync = "webspace_sync:main"
+webspace_sync = "webspace_sync:main"
 
 [build-system]
 requires = ["uv_build>=0.11.6,<0.12.0"]
