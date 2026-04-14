@@ -55,6 +55,19 @@ def main() -> None:
         help="Remote directory to upload to (default: data/raw)",
     )
 
+    # Download command
+    download_parser = subparsers.add_parser("download", help="Download a file")
+    download_parser.add_argument(
+        "remote_path",
+        help="Path to the remote file to download",
+    )
+    download_parser.add_argument(
+        "--local-dir",
+        "-d",
+        default=".",
+        help="Local directory to download to (default: .)",
+    )
+
     # Ls command
     ls_parser = subparsers.add_parser("ls", help="List files in a remote directory")
     ls_parser.add_argument(
@@ -83,6 +96,25 @@ def main() -> None:
         help="Push directories recursively",
     )
 
+    # Pull command
+    pull_parser = subparsers.add_parser(
+        "pull", help="Pull new or updated files from a remote directory"
+    )
+    pull_parser.add_argument(
+        "source",
+        help="Remote directory to pull from",
+    )
+    pull_parser.add_argument(
+        "target",
+        help="Local directory to pull to",
+    )
+    pull_parser.add_argument(
+        "--recurse",
+        "-R",
+        action="store_true",
+        help="Pull directories recursively",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -109,6 +141,16 @@ def main() -> None:
                 client.push(
                     Path(args.source),
                     args.target,
+                    recursive=args.recurse,
+                    callback=print,
+                )
+            elif args.command == "download":
+                client.download(args.remote_path, Path(args.local_dir))
+                print(f"Successfully downloaded {args.remote_path} to {args.local_dir}")
+            elif args.command == "pull":
+                client.pull(
+                    args.source,
+                    Path(args.target),
                     recursive=args.recurse,
                     callback=print,
                 )
