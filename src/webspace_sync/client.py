@@ -114,6 +114,22 @@ class WebspaceClient:
         finally:
             ftp.cwd(original_cwd)
 
+    def download(self, remote_path: str, local_dir: Path) -> None:
+        """Downloads a file from the remote server.
+
+        Args:
+            remote_path: The path to the remote file to download.
+            local_dir: The local directory to download to.
+        """
+        ftp = self.connect()
+
+        local_dir.mkdir(parents=True, exist_ok=True)
+        filename = os.path.basename(remote_path)
+        local_path = local_dir / filename
+
+        with open(local_path, "wb") as f:
+            ftp.retrbinary(f"RETR {remote_path}", f.write)
+
     def ls(self, remote_dir: str = ".") -> List[str]:
         """Lists files in the remote directory.
 
@@ -213,4 +229,93 @@ class WebspaceClient:
                 new_remote_dir = f"{remote_dir}/{entry.name}".replace("//", "/")
                 self.push(
                     Path(entry.path), new_remote_dir, recursive=True, callback=callback
+                )
+
+    def pull(
+        self,
+        remote_dir: str,
+        local_dir: Path,
+        recursive: bool = False,
+        callback=None,
+    ) -> None:
+        """Pulls new or updated files from remote_dir to local_dir.
+
+        Args:
+            remote_dir: The remote directory to pull from.
+            local_dir: The local directory to pull to.
+            recursive: Whether to pull directories recursively. Defaults to False.
+            callback: An optional callback function for logging progress.
+        """
+        ftp = self.connect()
+
+        local_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            entries = list(ftp.mlsd(remote_dir))
+        except Exception:
+            # Fallback if MLSD is not supported
+            try:
+                names = self.ls(remote_dir)
+                entries = []
+                for name in names:
+                    if name in (".", ".."):
+                        continue
+                    # Try to determine if it's a directory
+                    original_cwd = ftp.pwd()
+                    is_dir = False
+                    try:
+                        ftp.cwd(f"{remote_dir}/{name}")
+                        is_dir = True
+                        ftp.cwd(original_cwd)
+                    except Exception:  # nosec: B110
+                        pass
+
+                    if is_dir:
+                        entries.append((name, {"type": "dir"}))
+                    else:
+                        modify: Optional[str] = None
+                        try:
+                            modify = ftp.voidcmd(f"MDTM {remote_dir}/{name}").split()[1]
+                        except Exception:  # nosec: B110
+                            pass
+                        entries.append((name, {"type": "file", "modify": modify or ""}))
+            except Exception:
+                entries = []
+
+        for name, facts in entries:
+            if name in (".", ".."):
+                continue
+
+            if facts.get("type") == "file":
+                local_path = local_dir / name
+                remote_mtime_str = facts.get("modify")
+                should_download = False
+
+                if not local_path.exists():
+                    should_download = True
+                elif remote_mtime_str:
+                    try:
+                        remote_dt = datetime.datetime.strptime(
+                            remote_mtime_str[:14], "%Y%m%d%H%M%S"
+                        ).replace(tzinfo=datetime.timezone.utc)
+                        remote_mtime = remote_dt.timestamp()
+                        local_mtime = local_path.stat().st_mtime
+                        if remote_mtime > local_mtime:
+                            should_download = True
+                    except Exception:  # nosec: B110
+                        pass
+
+                if should_download:
+                    if callback:
+                        callback(f"Downloading {remote_dir}/{name} to {local_dir}")
+                    self.download(f"{remote_dir}/{name}", local_dir)
+                else:
+                    if callback:
+                        callback(f"Skipping {name} (already up to date)")
+
+            elif facts.get("type") == "dir" and recursive:
+                new_remote_dir = f"{remote_dir}/{name}".replace("//", "/")
+                new_local_dir = local_dir / name
+                self.pull(
+                    new_remote_dir, new_local_dir, recursive=True, callback=callback
                 )

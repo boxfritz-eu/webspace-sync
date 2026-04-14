@@ -126,3 +126,80 @@ def test_client_push_recursive(mock_ftp, tmp_path):
     mock_ftp.storbinary.assert_called_once()
     assert "STOR subfile.txt" in mock_ftp.storbinary.call_args[0][0]
     mock_ftp.cwd.assert_any_call("remote/sub")
+
+
+def test_client_download(mock_ftp, tmp_path):
+    client = WebspaceClient("host", "user", "pass")
+    client.download("remote/path/file.txt", tmp_path)
+
+    mock_ftp.retrbinary.assert_called_once()
+    assert "RETR remote/path/file.txt" in mock_ftp.retrbinary.call_args[0][0]
+    assert (tmp_path / "file.txt").exists()
+
+
+def test_client_pull_new_file(mock_ftp, tmp_path):
+    mock_ftp.mlsd.return_value = [
+        ("new.txt", {"type": "file", "modify": "20200101000000"})
+    ]
+
+    local_dir = tmp_path / "local"
+    # Local dir doesn't exist yet, pull should create it
+
+    client = WebspaceClient("host", "user", "pass")
+    client.pull("remote", local_dir)
+
+    mock_ftp.retrbinary.assert_called_once()
+    assert "RETR remote/new.txt" in mock_ftp.retrbinary.call_args[0][0]
+    assert (local_dir / "new.txt").exists()
+
+
+def test_client_pull_existing_file_newer(mock_ftp, tmp_path):
+    # Remote file is from 2030 (future)
+    mock_ftp.mlsd.return_value = [
+        ("file.txt", {"type": "file", "modify": "20300101000000"})
+    ]
+
+    local_dir = tmp_path / "local"
+    local_dir.mkdir()
+    local_file = local_dir / "file.txt"
+    local_file.write_text("old content")
+    # Local mtime will be "now", which is before 2030
+
+    client = WebspaceClient("host", "user", "pass")
+    client.pull("remote", local_dir)
+
+    mock_ftp.retrbinary.assert_called_once()
+
+
+def test_client_pull_existing_file_older(mock_ftp, tmp_path):
+    # Remote file is from 2020
+    mock_ftp.mlsd.return_value = [
+        ("file.txt", {"type": "file", "modify": "20200101000000"})
+    ]
+
+    local_dir = tmp_path / "local"
+    local_dir.mkdir()
+    local_file = local_dir / "file.txt"
+    local_file.write_text("new content")
+    # Local mtime is "now", which is after 2020
+
+    client = WebspaceClient("host", "user", "pass")
+    client.pull("remote", local_dir)
+
+    mock_ftp.retrbinary.assert_not_called()
+
+
+def test_client_pull_recursive(mock_ftp, tmp_path):
+    mock_ftp.mlsd.side_effect = [
+        [("sub", {"type": "dir"})],
+        [("subfile.txt", {"type": "file", "modify": "20200101000000"})],
+    ]
+
+    local_dir = tmp_path / "local"
+
+    client = WebspaceClient("host", "user", "pass")
+    client.pull("remote", local_dir, recursive=True)
+
+    mock_ftp.retrbinary.assert_called_once()
+    assert "RETR remote/sub/subfile.txt" in mock_ftp.retrbinary.call_args[0][0]
+    assert (local_dir / "sub" / "subfile.txt").exists()
