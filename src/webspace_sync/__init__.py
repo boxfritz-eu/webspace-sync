@@ -115,6 +115,25 @@ def main() -> None:
         help="Pull directories recursively",
     )
 
+    # Sync command
+    sync_parser = subparsers.add_parser(
+        "sync", help="Synchronize files bidirectionally (push then pull)"
+    )
+    sync_parser.add_argument(
+        "local_dir",
+        help="Local directory to sync",
+    )
+    sync_parser.add_argument(
+        "remote_dir",
+        help="Remote directory to sync",
+    )
+    sync_parser.add_argument(
+        "--recurse",
+        "-R",
+        action="store_true",
+        help="Sync directories recursively",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -141,6 +160,13 @@ def main() -> None:
                 client.push(
                     Path(args.source),
                     args.target,
+                    recursive=args.recurse,
+                    callback=print,
+                )
+            elif args.command == "sync":
+                client.sync(
+                    Path(args.local_dir),
+                    args.remote_dir,
                     recursive=args.recurse,
                     callback=print,
                 )

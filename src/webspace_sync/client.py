@@ -319,3 +319,28 @@ class WebspaceClient:
                 self.pull(
                     new_remote_dir, new_local_dir, recursive=True, callback=callback
                 )
+
+    def sync(
+        self,
+        local_dir: Path,
+        remote_dir: str,
+        recursive: bool = False,
+        callback=None,
+    ) -> None:
+        """Synchronizes files bidirectionally between local_dir and remote_dir.
+
+        Performs a push followed by a pull, using the same timestamp-based rules.
+
+        Args:
+            local_dir: The local directory to sync.
+            remote_dir: The remote directory to sync.
+            recursive: Whether to sync directories recursively. Defaults to False.
+            callback: An optional callback function for logging progress.
+        """
+        if callback:
+            callback(f"Starting push: {local_dir} -> {remote_dir}")
+        self.push(local_dir, remote_dir, recursive=recursive, callback=callback)
+
+        if callback:
+            callback(f"Starting pull: {remote_dir} -> {local_dir}")
+        self.pull(remote_dir, local_dir, recursive=recursive, callback=callback)

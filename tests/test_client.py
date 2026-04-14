@@ -203,3 +203,24 @@ def test_client_pull_recursive(mock_ftp, tmp_path):
     mock_ftp.retrbinary.assert_called_once()
     assert "RETR remote/sub/subfile.txt" in mock_ftp.retrbinary.call_args[0][0]
     assert (local_dir / "sub" / "subfile.txt").exists()
+
+
+def test_client_sync(mock_ftp, tmp_path):
+    mock_ftp.mlsd.return_value = []
+    local_dir = tmp_path / "local"
+    local_dir.mkdir()
+    (local_dir / "file.txt").write_text("content")
+
+    client = WebspaceClient("host", "user", "pass")
+    with (
+        patch.object(client, "push") as mock_push,
+        patch.object(client, "pull") as mock_pull,
+    ):
+        client.sync(local_dir, "remote")
+
+        mock_push.assert_called_once_with(
+            local_dir, "remote", recursive=False, callback=None
+        )
+        mock_pull.assert_called_once_with(
+            "remote", local_dir, recursive=False, callback=None
+        )
