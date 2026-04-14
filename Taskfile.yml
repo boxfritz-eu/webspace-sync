@@ -1,0 +1,80 @@
+version: '3'
+
+vars:
+  PYTHON_PATH: .
+
+tasks:
+  install:
+    desc: Install project dependencies and sync with uv.lock
+    cmds:
+      - uv sync
+
+  run:
+    desc: Execute the Webspace Sync
+    cmds:
+      - uv run webspace-sync {{.CLI_ARGS}}
+
+  upload:
+    desc: Upload the output file to the remote server
+    cmds:
+      - uv run webspace-upload {{.CLI_ARGS}}
+
+  deploy:
+    desc: Run the pipeline and upload the result
+    cmds:
+      - task: run
+      - task: upload
+
+  test:
+    desc: Run the full pytest suite
+    cmds:
+      - PYTHONPATH={{.PYTHON_PATH}} uv run pytest
+
+  test-cov:
+    desc: Run tests and generate a coverage report
+    cmds:
+      - PYTHONPATH={{.PYTHON_PATH}} uv run pytest --cov=src/webspace_sync --cov-report=term-missing
+
+  lint:
+    desc: Lint the project using ruff and apply safe fixes
+    cmds:
+      - uv run ruff check . --fix
+
+  format:
+    desc: Format the code using ruff
+    cmds:
+      - uv run ruff format .
+
+  check:
+    desc: Perform all static analysis (lint and format check)
+    cmds:
+      - uv run ruff check . --fix
+      - uv run ruff format .
+
+  clean:
+    desc: Remove temporary build and test files
+    cmds:
+      - rm -rf .pytest_cache .coverage .ruff_cache output/
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - echo "Cleaned up temporary files and output/ directory"
+
+  bump-patch:
+    desc: Bump patch version
+    cmds:
+      - uv run bump-my-version bump patch
+
+  bump-minor:
+    desc: Bump minor version
+    cmds:
+      - uv run bump-my-version bump minor
+
+  bump-major:
+    desc: Bump major version
+    cmds:
+      - uv run bump-my-version bump major
+
+  all:
+    desc: Perform a full check (format, lint, test)
+    cmds:
+      - task: check
+      - task: test-cov
