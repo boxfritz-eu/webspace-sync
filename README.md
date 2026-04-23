@@ -2,6 +2,10 @@
 
 A tool to synchronize files with a remote webspace via FTP_TLS.
 
+![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)
+[![Ruff](https://github.com/boxfritz-eu/webspace-sync/actions/workflows/lint.yml/badge.svg)](https://github.com/boxfritz-eu/webspace-sync/actions/workflows/lint.yml)
+[![Tests](https://github.com/boxfritz-eu/webspace-sync/actions/workflows/tests.yml/badge.svg)](https://github.com/boxfritz-eu/webspace-sync/actions/workflows/tests.yml)
+
 ## Installation
 
 ```bash
